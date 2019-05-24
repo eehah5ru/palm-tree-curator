@@ -51,6 +51,14 @@ Influxdb influx(INFLUXDB_HOST);
 //const int sclPin = D1;
 //const int sdaPin = D2;
 
+const int moisturePowerPin = D7;
+
+const int skipReadSoilMoistureCount = 60;
+
+int soilMoisture = 0;
+int skipReadSoilMositure = 0;
+
+
 //
 // write row to InfluxDb server
 //
@@ -62,6 +70,10 @@ void influxWriteRow (InfluxData &row) {
 
 void setup() {
   pinMode(A0, INPUT);
+
+  pinMode(moisturePowerPin, OUTPUT); //Set D7 as an OUTPUT
+  digitalWrite(moisturePowerPin, LOW); //Set to LOW so no power is flowing through the sensor  
+  
 //  Wire.begin(sdaPin, sclPin);
   
   Serial.begin(9600);
@@ -126,8 +138,25 @@ void serialDebug (char *label, float value, int precision) {
 #endif
 }
 
+int readSoilMoisture () {
+  if (skipReadSoilMositure >= skipReadSoilMoistureCount) {
+      skipReadSoilMositure = 0;
+  }
+  
+  if (skipReadSoilMositure == 0) {
+    digitalWrite(moisturePowerPin, HIGH);//turn D7 "On"
+    delay(10);
+    soilMoisture = analogRead(A0);
+    digitalWrite(moisturePowerPin, LOW);
+  }
+
+  skipReadSoilMositure += 1;
+
+  return soilMoisture;
+}
+
 void sendSoilMoisture () {
-  int rawMoisture = analogRead(A0);
+  int rawMoisture = readSoilMoisture();
   
   InfluxData row("palm_moisture");
   row.addTag("device", INFLUX_DEVICE);
